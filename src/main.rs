@@ -1,6 +1,9 @@
+mod package;
+mod view;
+
 use jane_eyre::Result;
-use serde::Deserialize;
-use std::borrow::Cow;
+use package::PackageJson;
+use reqwest::blocking::Client;
 use structopt::StructOpt;
 use tracing::{
   error,
@@ -13,10 +16,15 @@ use tracing_subscriber::FmtSubscriber;
 pub enum Opt {
   /// Install your deps
   Install(Install),
+  /// View a package
+  View(View),
 }
 
 #[derive(StructOpt, Debug)]
 pub struct Install {}
+
+#[derive(StructOpt, Debug)]
+pub struct View {}
 
 fn main() {
   if let Err(e) = run() {
@@ -31,53 +39,18 @@ fn run() -> Result<()> {
   let opt = Opt::from_args();
   match opt {
     Opt::Install(_install) => {
-      let pj =
+      let _pj =
         serde_json::from_slice::<PackageJson>(&std::fs::read("package.json")?)?;
+    }
+    Opt::View(_view) => {
+      const REGISTRY: &str = "https://registry.npmjs.com/";
+      let client = Client::new();
+      let res: view::ViewPkg = client
+        .get(&format!("{}/{}/latest", REGISTRY, "react"))
+        .send()?
+        .json()?;
+      println!("{:?}", res);
     }
   }
   Ok(())
-}
-
-#[derive(Deserialize, Debug)]
-pub struct PackageJson<'p> {
-  name: Option<Cow<'p, str>>,
-  version: Option<Cow<'p, str>>,
-  description: Option<Cow<'p, str>>,
-  #[serde(default)]
-  keywords: Vec<Cow<'p, str>>,
-  homepage: Option<Cow<'p, str>>,
-  bugs: Option<Bugs<'p>>,
-  license: Option<Cow<'p, str>>,
-  author: Option<PersonFormat<'p>>,
-  #[serde(default)]
-  contributors: Vec<Cow<'p, str>>,
-  #[serde(default)]
-  files: Vec<Cow<'p, str>>,
-  main: Option<Cow<'p, str>>,
-  browser: Option<Cow<'p, str>>,
-}
-
-#[derive(Deserialize, Debug)]
-pub enum Bugs<'p> {
-  OneLine(Cow<'p, str>),
-  Bug(Bug<'p>),
-}
-
-#[derive(Deserialize, Debug)]
-pub struct Bug<'p> {
-  url: Cow<'p, str>,
-  email: Cow<'p, str>,
-}
-
-#[derive(Deserialize, Debug)]
-pub enum PersonFormat<'p> {
-  OneLine(Cow<'p, str>),
-  Person(Person<'p>),
-}
-
-#[derive(Deserialize, Debug)]
-pub struct Person<'p> {
-  name: Cow<'p, str>,
-  email: Option<Cow<'p, str>>,
-  url: Option<Cow<'p, str>>,
 }
